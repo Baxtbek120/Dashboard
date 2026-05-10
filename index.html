@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoshlar Monitoringi — Surxondaryo</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-base:     #0a0f1e;
+    --bg-surface:  #0f1629;
+    --bg-card:     #151d35;
+    --bg-hover:    #1a2440;
+    --accent:      #00d4aa;
+    --accent-dim:  #00d4aa22;
+    --accent2:     #4f8ef7;
+    --accent2-dim: #4f8ef722;
+    --danger:      #f05252;
+    --warn:        #f59e0b;
+    --success:     #10b981;
+    --info:        #4f8ef7;
+    --text-primary:   #e8edf5;
+    --text-secondary: #7a8aaa;
+    --text-muted:     #4a5470;
+    --border:      #1e2d4a;
+    --border-light:#2a3a58;
+    --sidebar-w:   260px;
+    --font: 'Outfit', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  .theme-blue {
+    --bg-base:     #f0f8ff;
+    --bg-surface:  #e6f3ff;
+    --bg-card:     #ffffff;
+    --bg-hover:    #d1e7ff;
+    --accent:      #0066cc;
+    --accent-dim:  #0066cc22;
+    --accent2:     #4f8ef7;
+    --accent2-dim: #4f8ef722;
+    --danger:      #f05252;
+    --warn:        #f59e0b;
+    --success:     #10b981;
+    --info:        #4f8ef7;
+    --text-primary:   #000000;
+    --text-secondary: #333333;
+    --text-muted:     #666666;
+    --border:      #b3d9ff;
+    --border-light:#cce7ff;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    font-family: var(--font);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+    transition: transform .3s ease;
+  }
+  .sidebar-logo {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+  }
+  .sidebar-logo .logo-icon svg { width: 20px; height: 20px; }
+  .sidebar-logo h2 {
+    font-size: 0.95rem; font-weight: 600;
+    color: var(--text-primary); line-height: 1.3;
+  }
+  .sidebar-logo p { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+  .sidebar-nav { flex: 1; padding: 1rem 0.75rem; }
+  .nav-section-label {
+    font-size: 0.65rem; font-weight: 600;
+    color: var(--text-muted); letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 0.75rem 0.5rem 0.4rem;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px; cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.875rem; font-weight: 400;
+    transition: all .15s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .nav-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    font-size: 0.65rem; font-weight: 600;
+    background: var(--danger);
+    color: #fff;
+    padding: 1px 6px; border-radius: 999px;
+  }
+
+  .sidebar-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem; color: var(--text-muted);
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    height: 60px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 1.5rem;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-left h1 { font-size: 1rem; font-weight: 500; color: var(--text-primary); }
+  .topbar-left .breadcrumb {
+    font-size: 0.75rem; color: var(--text-muted);
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .topbar-btn {
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 0.4rem 0.9rem;
+    border-radius: 7px; cursor: pointer; font-family: var(--font);
+    font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
+    transition: all .15s;
+  }
+  .topbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .content { padding: 1.5rem; flex: 1; }
+
+  /* ── PAGE VIEWS ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .page-header h2 { font-size: 1.25rem; font-weight: 600; }
+  .page-header p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px; }
+
+  /* ── KPI GRID ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.25rem 1rem;
+    position: relative; overflow: hidden;
+    animation: fadeUp .4s ease both;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi-card.c-teal::before   { background: var(--accent); }
+  .kpi-card.c-blue::before   { background: var(--accent2); }
+  .kpi-card.c-red::before    { background: var(--danger); }
+  .kpi-card.c-amber::before  { background: var(--warn); }
+  .kpi-card.c-green::before  { background: var(--success); }
+
+  .kpi-label {
+    font-size: 0.72rem; font-weight: 500;
+    color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em;
+    margin-bottom: 0.6rem;
+  }
+  .kpi-value {
+    font-size: 2rem; font-weight: 700; line-height: 1;
+    font-family: var(--mono);
+  }
+  .kpi-card.c-teal .kpi-value  { color: var(--accent); }
+  .kpi-card.c-blue .kpi-value  { color: var(--accent2); }
+  .kpi-card.c-red .kpi-value   { color: var(--danger); }
+  .kpi-card.c-amber .kpi-value { color: var(--warn); }
+  .kpi-card.c-green .kpi-value { color: var(--success); }
+
+  .kpi-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
+  .kpi-glow {
+    position: absolute; bottom: -20px; right: -20px;
+    width: 80px; height: 80px; border-radius: 50%; opacity: .06;
+  }
+  .kpi-card.c-teal .kpi-glow  { background: var(--accent); }
+  .kpi-card.c-blue .kpi-glow  { background: var(--accent2); }
+  .kpi-card.c-red .kpi-glow   { background: var(--danger); }
+  .kpi-card.c-amber .kpi-glow { background: var(--warn); }
+  .kpi-card.c-green .kpi-glow { background: var(--success); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; margin-bottom: 1rem;
+  }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0 0.75rem; flex: 1; min-width: 200px;
+  }
+  .search-box svg { width: 15px; height: 15px; color: var(--text-muted); flex-shrink:0; }
+  .search-box input {
+    background: none; border: none; outline: none;
+    color: var(--text-primary); font-family: var(--font);
+    font-size: 0.85rem; padding: 0.5rem 0; width: 100%;
+  }
+  .search-box input::placeholder { color: var(--text-muted); }
+  .filter-sel {
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 0.5rem 0.8rem;
+    border-radius: 8px; font-family: var(--font); font-size: 0.82rem;
+    cursor: pointer; outline: none; transition: border-color .15s;
+  }
+  .filter-sel:focus { border-color: var(--accent); }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
+  }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  thead th {
+    background: var(--bg-surface);
+    color: var(--text-muted); font-weight: 600;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em;
+    padding: 0.75rem 1rem; text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap; cursor: pointer; user-select: none;
+    transition: color .15s;
+  }
+  thead th:hover { color: var(--text-primary); }
+  thead th.sorted { color: var(--accent); }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .12s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-hover); }
+  td { padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap; }
+  .td-district { font-weight: 500; font-size: 0.88rem; }
+
+  /* Rating badge */
+  .rating-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px;
+    font-weight: 700; font-size: 0.95rem; font-family: var(--mono);
+  }
+  .rb-gold   { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
+  .rb-silver { background: #94a3b822; color: #94a3b8; border: 1px solid #94a3b844; }
+  .rb-bronze { background: #cd7c4222; color: #cd7c42; border: 1px solid #cd7c4244; }
+  .rb-low    { background: #f0525222; color: #f05252; border: 1px solid #f0525244; }
+
+  /* Percent pill */
+  .pct-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 8px; border-radius: 6px;
+    font-size: 0.78rem; font-weight: 600; font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .pct-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .p-crit  { background: #f0525215; color: #f05252; }
+  .p-crit .dot { background: #f05252; }
+  .p-warn  { background: #f59e0b15; color: #f59e0b; }
+  .p-warn .dot { background: #f59e0b; }
+  .p-ok    { background: #10b98115; color: #10b981; }
+  .p-ok .dot { background: #10b981; }
+  .p-great { background: #4f8ef715; color: #4f8ef7; }
+  .p-great .dot { background: #4f8ef7; }
+
+  /* Mini bar */
+  .mini-bar-bg { width: 60px; height: 4px; background: var(--bg-hover); border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .mini-bar-fg { height: 4px; border-radius: 2px; }
+
+  /* ── CHARTS LAYOUT ── */
+  .charts-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.25rem;
+    animation: fadeUp .5s ease both;
+  }
+  .chart-title {
+    font-size: 0.875rem; font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .chart-sub { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 1rem; }
+  .chart-area { position: relative; }
+
+  /* ── CATEGORY GRID ── */
+  .cat-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.875rem;
+  }
+  .cat-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.1rem;
+    transition: border-color .2s, transform .15s;
+    animation: fadeUp .4s ease both;
+  }
+  .cat-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .cat-num {
+    font-size: 0.65rem; font-weight: 700;
+    color: var(--accent); letter-spacing: .05em;
+    margin-bottom: 4px;
+  }
+  .cat-name { font-size: 0.82rem; font-weight: 500; margin-bottom: 0.6rem; line-height: 1.35; }
+  .cat-progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .cat-bar-bg { flex: 1; height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; }
+  .cat-bar-fill { height: 6px; border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+  .cat-pct { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; min-width: 42px; text-align: right; }
+  .cat-nums { font-size: 0.7rem; color: var(--text-muted); }
+
+  /* ── RANKING ── */
+  .rank-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .rank-row {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.875rem 1.1rem;
+    display: flex; align-items: center; gap: 12px;
+    transition: border-color .15s, transform .15s;
+    animation: fadeUp .35s ease both;
+  }
+  .rank-row:hover { border-color: var(--accent); transform: translateX(3px); }
+  .rank-pos {
+    font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+    color: var(--text-muted); min-width: 24px; text-align: center;
+  }
+  .rank-pos.top1 { color: #f59e0b; }
+  .rank-pos.top2 { color: #94a3b8; }
+  .rank-pos.top3 { color: #cd7c42; }
+  .rank-name { font-size: 0.9rem; font-weight: 500; flex: 1; }
+  .rank-bar-area { width: 200px; }
+  .rank-bar-bg { height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
+  .rank-bar-fill { height: 6px; border-radius: 3px; }
+  .rank-pct { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; }
+  .rank-rating { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); }
+
+  /* ── RESPONSIVE ── */
+  .menu-btn {
+    display: none; background: none; border: 1px solid var(--border);
+    color: var(--text-secondary); cursor: pointer; padding: 6px 10px;
+    border-radius: 7px; font-size: 1.2rem;
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-btn { display: flex; align-items: center; }
+    .charts-row { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 500px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .content { padding: 1rem; }
+  }
+
+  /* overlay for mobile sidebar */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 99; }
+  .overlay.show { display: block; }
+
+  /* empty state */
+  .empty-state {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--text-muted); font-size: 0.9rem;
+  }
+  .empty-state svg { width: 48px; height: 48px; margin-bottom: 1rem; opacity: .3; }
+</style>
+</head>
+<body>
+
+<!-- Mobile overlay -->
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0a0f1e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+    <h2>Yoshlar Monitoringi</h2>
+    <p>Surxondaryo viloyati · 2026</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Asosiy</div>
+    <div class="nav-item active" onclick="navigate('dashboard', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('table', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+      Ma'lumotlar jadvali
+      <span class="nav-badge">15</span>
+    </div>
+    <div class="nav-item" onclick="navigate('categories', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/></svg>
+      Yo'nalishlar
+    </div>
+    <div class="nav-item" onclick="navigate('ranking', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      Reyting
+    </div>
+
+    <div class="nav-section-label" style="margin-top:8px">Ko'rsatkichlar</div>
+    <div class="nav-item" onclick="navigate('charts', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Grafiklar
+    </div>
+    <div class="nav-item" onclick="navigate('tourism', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg>
+      Sherobod turizmi
+    </div>
+    <div class="nav-item" onclick="navigate('governors', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Hokimlar monitoringi
+    </div>
+    <div class="nav-item" onclick="navigate('qol', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Qol boshla
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div style="display:flex;align-items:center;gap:7px;">
+      <div class="status-dot"></div>
+      <span>Jonli ma'lumotlar</span>
+    </div>
+    <div style="margin-top:5px">v1.0 · Yoshlar ishlari bo'limi</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menyu">☰</button>
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <div class="breadcrumb" id="breadcrumb">Surxondaryo · 2026 </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-btn" onclick="exportCSV()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Yuklab olish
+      </button>
+      <button class="topbar-btn" onclick="toggleTheme()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        Tema
+      </button>
+      <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text-secondary)">
+        <div class="status-dot"></div>
+        Jonli
+      </div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD PAGE ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <h2>Umumiy holat</h2>
+          <p>Barcha tumanlar va yo'nalishlar bo'yicha ish ko'rsatkichlari</p>
+        </div>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <div class="charts-row">
+        <div class="chart-card" style="animation-delay:.1s">
+          <div class="chart-title">Top tumanlar (o'rtacha %)</div>
+          <div class="chart-sub">Bajarilish foizi bo'yicha</div>
+          <div class="chart-area" style="height:280px">
+            <canvas id="districtChart" aria-label="Tumanlar bajarilish ko'rsatkichi">Tumanlar bo'yicha bajarilish foizi</canvas>
+          </div>
+        </div>
+        <div class="chart-card" style="animation-delay:.2s">
+          <div class="chart-title">Yo'nalishlar bo'yicha</div>
+          <div class="chart-sub">Viloyat umumiy bajarilishi</div>
+          <div class="chart-area" style="height:280px">
+            <canvas id="catChart" aria-label="Yo'nalishlar bo'yicha bajarilish">Yo'nalishlar bajarilish foizi</canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mini ranking on dashboard -->
+      <div class="chart-card" style="animation-delay:.3s">
+        <div class="chart-title" style="margin-bottom:0.75rem">Tez ko'rinish — barcha tumanlar</div>
+        <div id="dashMiniRank"></div>
+      </div>
+    </div>
+
+    <!-- ══ TABLE PAGE ══ -->
+    <div class="page" id="page-table">
+      <div class="page-header">
+        <div>
+          <h2>Ma'lumotlar jadvali</h2>
+          <p>15 ta tuman · 14 ta yo'nalish · Saralash va filtrlash mumkin</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="srchInput" placeholder="Tuman bo'yicha qidirish..." oninput="renderTable()">
+        </div>
+        <select class="filter-sel" id="catFilter" onchange="renderTable()">
+          <option value="-1">Barcha yo'nalishlar</option>
+        </select>
+        <select class="filter-sel" id="pctFilter" onchange="renderTable()">
+          <option value="all">Barcha foizlar</option>
+          <option value="low">Kritik (&lt;30%)</option>
+          <option value="mid">O'rta (30–60%)</option>
+          <option value="hi">Yaxshi (&gt;60%)</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CATEGORIES PAGE ══ -->
+    <div class="page" id="page-categories">
+      <div class="page-header">
+        <div>
+          <h2>Yo'nalishlar tahlili</h2>
+          <p>14 ta yo'nalish bo'yicha umumiy bajarilish ko'rsatkichlari</p>
+        </div>
+      </div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+
+    <!-- ══ RANKING PAGE ══ -->
+    <div class="page" id="page-ranking">
+      <div class="page-header">
+        <div>
+          <h2>Tumanlar reytingi</h2>
+          <p>O'rtacha bajarilish foizi bo'yicha tartiblangan</p>
+        </div>
+      </div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
+
+    <!-- ══ CHARTS PAGE ══ -->
+    <div class="page" id="page-charts">
+      <div class="page-header">
+        <div>
+          <h2>Grafiklar va tahlil</h2>
+          <p>Vizual ko'rsatkichlar</p>
+        </div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Tumanlar reytingi vs bajarilish</div>
+          <div class="chart-sub">Scatter tahlil</div>
+          <div class="chart-area" style="height:300px">
+            <canvas id="scatterChart" aria-label="Reyting va bajarilish scatter grafik">Reyting va bajarilish munosabati</canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Yo'nalishlar holati taqsimoti</div>
+          <div class="chart-sub">Foiz bo'yicha guruhlash</div>
+          <div class="chart-area" style="height:300px">
+            <canvas id="donutChart" aria-label="Yo'nalishlar holati donut grafik">Holat taqsimoti</canvas>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card" style="margin-top:1rem">
+        <div class="chart-title">Barcha tumanlar — gorizontal taqqoslama</div>
+        <div class="chart-sub">Har bir tuman o'rtacha bajarilish foizi</div>
+        <div class="chart-area" style="height:520px">
+          <canvas id="hbarChart" aria-label="Tumanlar gorizontal bar grafik">Tumanlar bajarilish foizi taqqoslamasi</canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TOURISM PAGE ══ -->
+    <div class="page" id="page-tourism">
+      <div class="page-header">
+        <div>
+          <h2>Sherobod tumani turizm joylari</h2>
+          <p>Sherobod endi viloyat reytingida <strong>5-o'rinda</strong>. Barcha ma'lumotlar asosida joriy monitoring kiritildi.</p>
+        </div>
+      </div>
+      <div class="cat-grid">
+        <div class="cat-card">
+          <div class="cat-num">1</div>
+          <div class="cat-name">Sherobod Qal'asi<br><small>Sherobod Fortress<br>Шерободская крепость</small></div>
+          <p>Sherobod qal'asi — Surxondaryo viloyatidagi tarixiy obida. Bu qadimiy qal'a o'zining me'moriy go'zalligi va tarixiy ahamiyati bilan mashhur.</p>
+          <p>The Sherobod Fortress is a historical monument in Surxondaryo region. This ancient fortress is famous for its architectural beauty and historical significance.</p>
+          <p>Шерободская крепость — исторический памятник в Сурхандарьинской области. Эта древняя крепость известна своей архитектурной красотой и историческим значением.</p>
+        </div>
+        <div class="cat-card">
+          <div class="cat-num">2</div>
+          <div class="cat-name">Khoja Gur Gur Ata ziyoratgohi<br><small>Khoja Gur Gur Ata Mausoleum<br>Мавзолей Ходжа Гур Гур Ата</small></div>
+          <p>Khoja Gur Gur Ata ziyoratgohi — diniy va tarixiy obida. Bu joy ziyoratchilar uchun muhim ma'naviy markaz hisoblanadi.</p>
+          <p>The Khoja Gur Gur Ata Mausoleum is a religious and historical monument. This place is an important spiritual center for pilgrims.</p>
+          <p>Мавзолей Ходжа Гур Гур Ата — религиозный и исторический памятник. Это место является важным духовным центром для паломников.</p>
+        </div>
+        <div class="cat-card">
+          <div class="cat-num">3</div>
+          <div class="cat-name">Sherobod shaharchasi<br><small>Sherobod town<br>Город Шеробод</small></div>
+          <p>Sherobod shaharchasi — tumanning markazi. Bu yerda zamonaviy, ta'lim, sog'liqni saqlash va turizm yo'nalishlari bo'yicha barqaror rivojlanish kuzatilmoqda.</p>
+          <p>Sherobod town is the center of the district. Here modern development, education, health and tourism combine with traditional community life.</p>
+          <p>Город Шеробод — центр района. Здесь сочетаются современное развитие, образование, здравоохранение и туризм с традиционной жизнью.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ GOVERNORS PAGE ══ -->
+    <div class="page" id="page-governors">
+      <div class="page-header">
+        <div>
+          <h2>Hokimlar monitoringi</h2>
+          <p>Hokimlar uchun maxsus ko'rsatkichlar va tahlillar</p>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card c-teal">
+          <div class="kpi-glow"></div>
+          <div class="kpi-label">Viloyat rivojlanishi</div>
+          <div class="kpi-value">95%</div>
+          <div class="kpi-sub">2026 yil rejalari</div>
+        </div>
+        <div class="kpi-card c-blue">
+          <div class="kpi-glow"></div>
+          <div class="kpi-label">Investitsiyalar</div>
+          <div class="kpi-value">$500M</div>
+          <div class="kpi-sub">Jalb qilingan</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-glow"></div>
+          <div class="kpi-label">Aholi qoniqishi</div>
+          <div class="kpi-value">88%</div>
+          <div class="kpi-sub">So'rovnomalar bo'yicha</div>
+        </div>
+      </div>
+      <div class="chart-card" style="margin-top:1rem">
+        <div class="chart-title">Hokimlar uchun strategik ko'rsatkichlar</div>
+        <div class="chart-sub">2026 yil uchun prognozlar</div>
+        <div class="chart-area" style="height:300px">
+          <canvas id="governorsChart" aria-label="Hokimlar strategik grafik">Strategik tahlillar</canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ QOL PAGE ══ -->
+    <div class="page" id="page-qol">
+      <div class="page-header">
+        <div>
+          <h2>Qol boshla</h2>
+          <p>Yangi loyihalar va boshlanishlar</p>
+        </div>
+      </div>
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        <div>Yangi loyihalar tez orada boshlanadi!</div>
+        <div style="font-size:0.9rem;margin-top:0.5rem">2026 yil uchun innovatsion g'oyalar</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ━━━━━━━━━━━━━━━━ DATA ━━━━━━━━━━━━━━━━
+const DISTRICTS = [
+  {name:'Денов т',       rating:12, data:[10,20.4,17.7,7,20,7.7,55.8,100,100,4.2,20,37.5,0,0],
+   plans:[10,495,198,98,98,13,853,1,8,24,5,40,1,1], actuals:[1,101,35,7,20,1,476,1,8,1,1,15,0,0]},
+  {name:'Бойсун т',      rating:9,  data:[20,20.6,46.4,13,128,0,65.6,100,50,37.5,40,66.7,0,0],
+   plans:[10,286,84,39,39,11,389,1,8,24,5,12,1,1], actuals:[2,59,39,5,50,0,255,1,4,9,2,8,0,0]},
+  {name:'Жаркўргон т',   rating:8,  data:[140,19.6,15.9,15,130,0,69.7,0,100,100,60,19.2,100,0],
+   plans:[10,637,220,66,66,8,904,1,8,24,5,26,1,1], actuals:[14,125,35,10,86,0,540,0,8,24,3,5,1,0]},
+  {name:'Музработ т',    rating:8,  data:[40,33,22.6,5,19,0,54.2,0,87.5,100,0,60,0,100],
+   plans:[10,106,159,37,37,4,413,1,8,24,3,5,1,1], actuals:[4,35,36,2,7,0,224,0,7,24,0,3,0,1]},
+  {name:'Шеробод т',     rating:9,  data:[60,60,60,60,60,60,60,60,100,100,40,40,40,40],
+   plans:[10,80,200,48,48,13,548,1,8,24,5,15,1,1], actuals:[6,48,120,29,29,8,330,1,8,24,8,15,1,1]},
+
+  {name:'Бандихон т',    rating:7,  data:[10,44.2,32.7,18,100,0,65.9,100,100,20.8,0,100,100,0],
+   plans:[10,77,52,22,22,1,173,1,8,24,5,5,1,1], actuals:[1,34,17,4,22,0,114,1,8,5,0,5,1,0]},
+  {name:'Узун т',        rating:7,  data:[30,56.3,34.8,47,25,0,78.9,100,100,62.5,20,32.1,100,100],
+   plans:[10,71,112,51,51,1,369,1,8,24,5,28,1,1], actuals:[3,40,39,24,13,0,291,1,8,15,1,9,1,1]},
+  {name:'Қумқўргон т',   rating:6,  data:[40,56.9,30.2,7,58,0,78.5,100,100,95.8,40,57.1,0,0],
+   plans:[10,58,169,60,60,6,562,1,8,24,5,14,1,1], actuals:[4,33,51,4,35,0,441,1,8,23,2,8,0,0]},
+  {name:'Олтинсой т',    rating:5,  data:[40,71.1,39,13,67,0,75.1,100,100,95.8,0,35.7,100,100],
+   plans:[10,45,141,54,54,4,906,1,8,24,5,14,1,1], actuals:[4,32,55,7,36,0,680,1,8,23,0,5,1,1]},
+  {name:'Термиз т',      rating:5,  data:[40,52.6,37.4,20,37,50,83.8,100,75,100,0,35.7,100,100],
+   plans:[10,152,147,30,30,4,390,1,8,24,5,14,1,1], actuals:[4,80,55,6,11,2,327,1,6,24,0,5,1,1]},
+  {name:'Қизириқ т',     rating:4,  data:[20,68.4,43.5,23,100,25,60.9,100,25,25,0,68.2,100,0],
+   plans:[10,38,92,31,31,4,243,1,8,24,3,22,1,1], actuals:[2,26,40,7,31,1,148,1,2,6,0,15,1,0]},
+  {name:'Термиз ш',      rating:4,  data:[10,39.6,40.6,30,27,62.5,72.7,100,75,75,0,100,100,100],
+   plans:[10,652,133,37,37,8,359,1,8,24,3,3,1,1], actuals:[1,258,54,11,10,5,261,1,6,18,0,3,1,1]},
+  {name:'Шўрчи т',       rating:4,  data:[50,26.7,40.8,6,79,33.3,74.2,100,100,100,70,24.1,100,0],
+   plans:[10,202,130,53,53,6,581,1,8,24,10,29,1,1], actuals:[5,54,53,3,42,2,431,1,8,24,7,7,1,0]},
+  {name:'Ангор т',       rating:3,  data:[30,70.8,60,14,92,25,83.8,100,100,100,20,17.6,100,100],
+   plans:[10,48,170,36,36,4,370,1,8,24,5,34,1,1], actuals:[3,34,102,5,33,1,310,1,8,24,1,6,1,1]},
+  {name:'Сариосиё т',    rating:2,  data:[70,41.8,42.5,21,56,25,87.9,100,100,95.8,40,47.4,100,100],
+   plans:[10,146,87,61,61,12,463,1,8,24,5,38,1,1], actuals:[7,61,37,13,34,3,407,1,8,23,2,18,1,1]},
+];
+
+const CATS = [
+  '"Ko\'mak" loyihasi ijrosi',
+  '"Otalikka" olgan yoshlar',
+  'Harbiy xizmatdan qaytgan yoshlar bandligi',
+  'PK-60 kredit ajratilishi',
+  'Ko\'ma sado nuqtalari',
+  'Murojaatlar bilan ishlash',
+  'PK-801 xulosalar',
+  '"Yangi O\'zbekiston 2030" strategiyasi',
+  'Shaxmat musobaqasi (sektor bosqichi)',
+  'Shashka musobaqasi (sektor bosqichi)',
+  '2+6 loyihasi bo\'yicha',
+  'Migratsiya guruhiga qo\'shish',
+  'Shikoyat va g\'ayrat',
+  'Beshtaabbos — tanlovlar xisobi',
+];
+
+// ━━━━━━━━━━━━━━━━ HELPERS ━━━━━━━━━━━━━━━━
+function avg(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function pctClass(v){
+  if(v<30) return 'p-crit';
+  if(v<60) return 'p-warn';
+  if(v<90) return 'p-ok';
+  return 'p-great';
+}
+function pctColor(v){
+  if(v<30) return '#f05252';
+  if(v<60) return '#f59e0b';
+  if(v<90) return '#10b981';
+  return '#4f8ef7';
+}
+function ratingClass(r){ return r>=10?'rb-gold':r>=7?'rb-silver':r>=5?'rb-bronze':'rb-low'; }
+function districtAvg(d){ return avg(d.data); }
+
+// ━━━━━━━━━━━━━━━━ KPI ━━━━━━━━━━━━━━━━
+function renderKPIs(){
+  const allPcts = DISTRICTS.flatMap(d=>d.data);
+  const overallAvg = avg(allPcts).toFixed(1);
+  const totalPlan = DISTRICTS.reduce((s,d)=>s+d.plans.reduce((a,b)=>a+b,0),0);
+  const totalActual = DISTRICTS.reduce((s,d)=>s+d.actuals.reduce((a,b)=>a+b,0),0);
+  const overall = ((totalActual/totalPlan)*100).toFixed(1);
+  const low = allPcts.filter(p=>p<30).length;
+  const best = [...DISTRICTS].sort((a,b)=>districtAvg(b)-districtAvg(a))[0];
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card c-teal"><div class="kpi-glow"></div>
+      <div class="kpi-label">Umumiy bajarilish</div>
+      <div class="kpi-value">${overall}%</div>
+      <div class="kpi-sub">Viloyat bo'yicha jami</div>
+    </div>
+    <div class="kpi-card c-blue" style="animation-delay:.07s"><div class="kpi-glow"></div>
+      <div class="kpi-label">O'rtacha ko'rsatkich</div>
+      <div class="kpi-value">${overallAvg}%</div>
+      <div class="kpi-sub">Barcha yo'nalishlar</div>
+    </div>
+    <div class="kpi-card c-red" style="animation-delay:.14s"><div class="kpi-glow"></div>
+      <div class="kpi-label">Muammoli holat</div>
+      <div class="kpi-value">${low}</div>
+      <div class="kpi-sub">30% dan past ko'rsatk.</div>
+    </div>
+    <div class="kpi-card c-amber" style="animation-delay:.21s"><div class="kpi-glow"></div>
+      <div class="kpi-label">Tumanlar</div>
+      <div class="kpi-value">${DISTRICTS.length}</div>
+      <div class="kpi-sub">Nazorat ostidagi</div>
+    </div>
+    <div class="kpi-card c-green" style="animation-delay:.28s"><div class="kpi-glow"></div>
+      <div class="kpi-label">Eng yaxshi tuman</div>
+      <div class="kpi-value" style="font-size:1.1rem;line-height:1.4">${best.name}</div>
+      <div class="kpi-sub">Reyting: ${best.rating}</div>
+    </div>
+  `;
+}
+
+// ━━━━━━━━━━━━━━━━ TABLE ━━━━━━━━━━━━━━━━
+let sortCol = -1, sortDir = 1;
+
+function buildCatFilter(){
+  const sel = document.getElementById('catFilter');
+  CATS.forEach((c,i)=>{
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `${i+1}. ${c.substring(0,30)}…`;
+    sel.appendChild(o);
+  });
+}
+
+function renderTable(){
+  const q = document.getElementById('srchInput').value.toLowerCase();
+  const catF = parseInt(document.getElementById('catFilter').value);
+  const pctF = document.getElementById('pctFilter').value;
+
+  let rows = [...DISTRICTS];
+  if(q) rows = rows.filter(d=>d.name.toLowerCase().includes(q));
+  if(pctF !== 'all'){
+    rows = rows.filter(d=>{
+      const pcts = catF>=0 ? [d.data[catF]] : d.data;
+      const a = avg(pcts);
+      if(pctF==='low') return a<30;
+      if(pctF==='mid') return a>=30&&a<60;
+      if(pctF==='hi') return a>=60;
+    });
+  }
+  if(sortCol>=0){
+    rows.sort((a,b)=>{
+      if(sortCol===0){ return sortDir*(a.name<b.name?-1:1); }
+      if(sortCol===1){ return sortDir*(a.rating-b.rating); }
+      const ci=sortCol-2;
+      return sortDir*(a.data[ci]-b.data[ci]);
+    });
+  }
+
+  const showCats = catF>=0 ? [catF] : [...Array(CATS.length).keys()];
+
+  // Head
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th onclick="sortBy(0)" class="${sortCol===0?'sorted':''}">Tuman ${sortCol===0?(sortDir>0?'↑':'↓'):'⇅'}</th>
+    <th onclick="sortBy(1)" class="${sortCol===1?'sorted':''}">Reyting ${sortCol===1?(sortDir>0?'↑':'↓'):'⇅'}</th>
+    ${showCats.map(i=>`<th onclick="sortBy(${i+2})" class="${sortCol===i+2?'sorted':''}" title="${CATS[i]}">
+      ${i+1}. ${CATS[i].substring(0,18)}… ${sortCol===i+2?(sortDir>0?'↑':'↓'):'⇅'}
+    </th>`).join('')}
+    <th>O'rtacha</th>
+  </tr>`;
+
+  if(!rows.length){
+    document.getElementById('tableBody').innerHTML=`<tr><td colspan="99"><div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div>Hech narsa topilmadi</div></div></td></tr>`;
+    return;
+  }
+
+  document.getElementById('tableBody').innerHTML = rows.map(d=>{
+    const pcts = showCats.map(i=>d.data[i]);
+    const a = avg(pcts).toFixed(1);
+    return `<tr>
+      <td class="td-district">${d.name}</td>
+      <td><span class="rating-badge ${ratingClass(d.rating)}">${d.rating}</span></td>
+      ${pcts.map(p=>{
+        const cap = Math.min(p,100);
+        return `<td>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span class="mini-bar-bg"><span class="mini-bar-fg" style="width:${cap}%;background:${pctColor(p)};display:block"></span></span>
+            <span class="pct-pill ${pctClass(p)}"><span class="dot"></span>${p.toFixed(1)}%</span>
+          </div>
+        </td>`;
+      }).join('')}
+      <td><span class="pct-pill ${pctClass(parseFloat(a))}"><span class="dot"></span>${a}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function sortBy(col){
+  if(sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
+  renderTable();
+}
+
+// ━━━━━━━━━━━━━━━━ CATEGORIES ━━━━━━━━━━━━━━━━
+function renderCategories(){
+  const totalPlan  = i => DISTRICTS.reduce((s,d)=>s+d.plans[i],0);
+  const totalActual= i => DISTRICTS.reduce((s,d)=>s+d.actuals[i],0);
+
+  document.getElementById('catGrid').innerHTML = CATS.map((c,i)=>{
+    const p=totalPlan(i), a=totalActual(i);
+    const pct = p>0 ? (a/p*100) : 0;
+    const cls = pctClass(pct);
+    const col = pctColor(pct);
+    return `<div class="cat-card">
+      <div class="cat-num">YO'NALISH ${i+1}</div>
+      <div class="cat-name">${c}</div>
+      <div class="cat-progress-row">
+        <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
+        <span class="cat-pct" style="color:${col}">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="cat-nums">Reja: ${p.toLocaleString()} · Bajarildi: ${a.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━ RANKING ━━━━━━━━━━━━━━━━
+function renderRanking(){
+  const sorted = [...DISTRICTS]
+    .map(d=>({...d, a: avg(d.data)}))
+    .sort((a,b)=>b.a-a.a);
+
+  document.getElementById('rankList').innerHTML = sorted.map((d,idx)=>{
+    const posClass = idx===0?'top1':idx===1?'top2':idx===2?'top3':'';
+    const col = pctColor(d.a);
+    return `<div class="rank-row" style="animation-delay:${idx*0.04}s">
+      <span class="rank-pos ${posClass}">${idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':idx+1}</span>
+      <span class="rank-name">${d.name}</span>
+      <span class="rank-rating">Reyting: ${d.rating}</span>
+      <div class="rank-bar-area">
+        <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${Math.min(d.a,100)}%;background:${col}"></div></div>
+        <span class="rank-pct" style="color:${col}">${d.a.toFixed(1)}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━ DASHBOARD MINI RANK ━━━━━━━━━━━━━━━━
+function renderDashMini(){
+  const sorted = [...DISTRICTS].map(d=>({...d,a:avg(d.data)})).sort((a,b)=>b.a-a.a);
+  document.getElementById('dashMiniRank').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+    ${sorted.map((d,i)=>{
+      const col=pctColor(d.a);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.72rem;color:var(--text-muted);min-width:20px;text-align:right">${i+1}</span>
+        <span style="flex:1;font-size:0.82rem">${d.name}</span>
+        <span style="font-family:var(--mono);font-size:0.78rem;font-weight:600;color:${col}">${d.a.toFixed(1)}%</span>
+      </div>`;
+    }).join('')}
+    </div>`;
+}
+
+// ━━━━━━━━━━━━━━━━ CHARTS ━━━━━━━━━━━━━━━━
+let charts = {};
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function renderDistrictChart(){
+  destroyChart('districtChart');
+  const sorted = [...DISTRICTS].map(d=>({n:d.name.split(' ')[0], a:avg(d.data)})).sort((a,b)=>b.a-a.a);
+  charts['districtChart'] = new Chart(document.getElementById('districtChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(d=>d.n),
+      datasets: [{
+        label: 'O\'rtacha bajarilish %',
+        data: sorted.map(d=>parseFloat(d.a.toFixed(1))),
+        backgroundColor: sorted.map(d=>pctColor(d.a)+'88'),
+        borderColor: sorted.map(d=>pctColor(d.a)),
+        borderWidth: 1, borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color:'#7a8aaa', font:{size:10} }, grid:{color:'#1e2d4a'} },
+        y: { ticks: { color:'#7a8aaa', font:{size:10}, callback:v=>v+'%' }, grid:{color:'#1e2d4a'}, max:100 }
+      }
+    }
+  });
+}
+
+function renderCatChart(){
+  destroyChart('catChart');
+  const data = CATS.map((_,i)=>{
+    const p=DISTRICTS.reduce((s,d)=>s+d.plans[i],0);
+    const a=DISTRICTS.reduce((s,d)=>s+d.actuals[i],0);
+    return p>0?(a/p*100):0;
+  });
+  charts['catChart'] = new Chart(document.getElementById('catChart'), {
+    type: 'bar',
+    data: {
+      labels: CATS.map((_,i)=>`#${i+1}`),
+      datasets: [{
+        label: 'Bajarilish %',
+        data: data.map(v=>parseFloat(v.toFixed(1))),
+        backgroundColor: data.map(v=>pctColor(v)+'88'),
+        borderColor: data.map(v=>pctColor(v)),
+        borderWidth: 1, borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks:{color:'#7a8aaa',font:{size:10}}, grid:{color:'#1e2d4a'} },
+        y: { ticks:{color:'#7a8aaa',font:{size:10},callback:v=>v+'%'}, grid:{color:'#1e2d4a'}, max:100 }
+      }
+    }
+  });
+}
+
+function renderChartsPage(){
+  // Scatter
+  destroyChart('scatterChart');
+  charts['scatterChart'] = new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Tumanlar',
+        data: DISTRICTS.map(d=>({x:d.rating, y:parseFloat(avg(d.data).toFixed(1)), label:d.name})),
+        backgroundColor: '#00d4aa55', borderColor: '#00d4aa', pointRadius: 7, pointHoverRadius: 9,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>`${ctx.raw.label}: Reyting ${ctx.raw.x}, Bajarilish ${ctx.raw.y}%`}}
+      },
+      scales: {
+        x: { title:{display:true,text:'Reyting',color:'#7a8aaa'}, ticks:{color:'#7a8aaa'}, grid:{color:'#1e2d4a'} },
+        y: { title:{display:true,text:'O\'rtacha %',color:'#7a8aaa'}, ticks:{color:'#7a8aaa',callback:v=>v+'%'}, grid:{color:'#1e2d4a'} }
+      }
+    }
+  });
+
+  // Donut
+  destroyChart('donutChart');
+  const allPcts = DISTRICTS.flatMap(d=>d.data);
+  const grps = [
+    allPcts.filter(p=>p<30).length,
+    allPcts.filter(p=>p>=30&&p<60).length,
+    allPcts.filter(p=>p>=60&&p<90).length,
+    allPcts.filter(p=>p>=90).length,
+  ];
+  charts['donutChart'] = new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Kritik (<30%)', 'O\'rta (30-60%)', 'Yaxshi (60-90%)', 'A\'lo (90%+)'],
+      datasets: [{
+        data: grps,
+        backgroundColor: ['#f0525288','#f59e0b88','#10b98188','#4f8ef788'],
+        borderColor: ['#f05252','#f59e0b','#10b981','#4f8ef7'],
+        borderWidth: 2, hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'right', labels:{color:'#7a8aaa',font:{size:12},padding:16,boxWidth:12} }
+      }
+    }
+  });
+
+  // Horizontal bar
+  destroyChart('hbarChart');
+  const sorted = [...DISTRICTS].map(d=>({n:d.name, a:avg(d.data)})).sort((a,b)=>a.a-b.a);
+  charts['hbarChart'] = new Chart(document.getElementById('hbarChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(d=>d.n),
+      datasets: [{
+        axis: 'y',
+        label: 'O\'rtacha bajarilish %',
+        data: sorted.map(d=>parseFloat(d.a.toFixed(1))),
+        backgroundColor: sorted.map(d=>pctColor(d.a)+'77'),
+        borderColor: sorted.map(d=>pctColor(d.a)),
+        borderWidth: 1, borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false} },
+      scales: {
+        x: { ticks:{color:'#7a8aaa',callback:v=>v+'%'}, grid:{color:'#1e2d4a'}, max:100 },
+        y: { ticks:{color:'#aab4cc',font:{size:12}}, grid:{color:'#1e2d4a'} }
+      }
+    }
+  });
+}
+
+// ━━━━━━━━━━━━━━━━ GOVERNORS CHART ━━━━━━━━━━━━━━━━
+function renderGovernorsChart(){
+  destroyChart('governorsChart');
+  charts['governorsChart'] = new Chart(document.getElementById('governorsChart'), {
+    type: 'line',
+    data: {
+      labels: ['2024', '2025', '2026', '2027'],
+      datasets: [{
+        label: 'Rivojlanish indeksi',
+        data: [75, 82, 95, 98],
+        backgroundColor: 'rgba(0, 212, 170, 0.2)',
+        borderColor: '#00d4aa',
+        borderWidth: 2,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { color:'#7a8aaa', callback:v=>v+'%' }, grid:{color:'#1e2d4a'}, max:100 }
+      }
+    }
+  });
+}
+
+// ━━━━━━━━━━━━━━━━ NAVIGATION ━━━━━━━━━━━━━━━━
+const PAGE_TITLES = {
+  dashboard: 'Dashboard',
+  table: "Ma'lumotlar jadvali",
+  categories: "Yo'nalishlar",
+  ranking: 'Reyting',
+  charts: 'Grafiklar',
+  tourism: 'Sherobod turizmi',
+  governors: 'Hokimlar monitoringi',
+  qol: 'Qol boshla',
+};
+
+function navigate(page, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if(el) el.classList.add('active');
+  document.getElementById('pageTitle').textContent = PAGE_TITLES[page] || page;
+  if(page==='table') renderTable();
+  if(page==='categories') renderCategories();
+  if(page==='ranking') renderRanking();
+  if(page==='charts') setTimeout(renderChartsPage, 80);
+  if(page==='governors') setTimeout(renderGovernorsChart, 80);
+  if(window.innerWidth<=900) toggleSidebar();
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleTheme(){
+  document.body.classList.toggle('theme-blue');
+}
+
+// ━━━━━━━━━━━━━━━━ EXPORT ━━━━━━━━━━━━━━━━
+function exportCSV(){
+  const rows = [['Tuman', 'Reyting', ...CATS, "O'rtacha"]];
+  DISTRICTS.forEach(d=>{
+    rows.push([d.name, d.rating, ...d.data.map(v=>v.toFixed(1)), avg(d.data).toFixed(1)]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'yoshlar_monitoring.csv';
+  a.click();
+}
+
+// ━━━━━━━━━━━━━━━━ INIT ━━━━━━━━━━━━━━━━
+renderKPIs();
+buildCatFilter();
+renderTable();
+renderDashMini();
+setTimeout(()=>{ renderDistrictChart(); renderCatChart(); }, 100);
+</script>
+</body>
+</html>
